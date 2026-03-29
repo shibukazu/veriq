@@ -13,7 +13,7 @@ flowchart LR
     C --> D["veriq run\n(deterministic replay)"]
 ```
 
-`trace` has Claude execute your spec via [agent-browser](https://github.com/vercel-labs/agent-browser) — a Rust-based headless browser CLI from Vercel Labs. No Playwright, no browser driver setup; it runs anywhere `agent-browser` is installed. Every click, fill, and assertion is recorded as structured data. `generate` compiles that data into a vitest-compatible script. `run` replays it deterministically — no LLM involved.
+`trace` invokes Claude Code with your spec. Claude drives the browser step by step via [agent-browser](https://github.com/vercel-labs/agent-browser), recording every action as structured data. `generate` compiles that data into a vitest-compatible script. `run` replays it deterministically — no LLM involved.
 
 ## Install
 
