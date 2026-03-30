@@ -82,11 +82,19 @@ describe("parseAbAction", () => {
     });
   });
 
-  test("parses wait", () => {
+  test("parses wait with selector", () => {
     expect(parseAbAction("AB_ACTION|wait|[aria-label='Loading']|Loading")).toEqual({
       command: "wait",
       selector: "[aria-label='Loading']",
       label: "Loading",
+    });
+  });
+
+  test("parses wait --text as text= selector", () => {
+    expect(parseAbAction("AB_ACTION|wait|--text|Done")).toEqual({
+      command: "wait",
+      selector: "text=Done",
+      label: undefined,
     });
   });
 

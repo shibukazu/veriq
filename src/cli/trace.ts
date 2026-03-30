@@ -93,7 +93,7 @@ async function runTrace(featureName: string, specName: string): Promise<void> {
   log.meta("saved", actionsPath);
   log.meta("actions", traceActions.length);
   log.meta("status", overallStatus.toUpperCase());
-  log.hint(`run 'veriq generate ${featureName}/${specName}' to generate a Playwright test`);
+  log.hint(`run 'veriq generate ${featureName}/${specName}' to generate a test script`);
 }
 
 export function parseStatusLine(text: string): ParsedStatusLine | null {
@@ -152,8 +152,13 @@ export function parseAbAction(line: string): TraceAction | null {
     case "check":
     case "uncheck":
     case "hover":
-    case "wait":
       return { command, selector: parts[2], label: parts[3] };
+    case "wait": {
+      // LLM may emit AB_ACTION|wait|--text|<text> or AB_ACTION|wait|<selector>
+      const isTextWait = parts[2] === "--text";
+      const selector = isTextWait ? `text=${parts[3]}` : parts[2];
+      return { command, selector, label: isTextWait ? parts[4] : parts[3] };
+    }
     case "fill":
     case "type":
     case "select":
