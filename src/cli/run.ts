@@ -84,7 +84,6 @@ async function runTests(target?: string): Promise<void> {
           "vitest",
           "run",
           scriptFile,
-          "--reporter=default",
           "--reporter=json",
           `--outputFile.json=${reportFile}`,
         ],
@@ -120,8 +119,22 @@ async function readReport(path: string): Promise<VitestJsonReport | null> {
   }
 }
 
+const useColor = process.stdout.isTTY && process.env.NO_COLOR == null;
+const C = {
+  reset: useColor ? "\x1b[0m" : "",
+  bold: useColor ? "\x1b[1m" : "",
+  dim: useColor ? "\x1b[2m" : "",
+  green: useColor ? "\x1b[32m" : "",
+  red: useColor ? "\x1b[31m" : "",
+  yellow: useColor ? "\x1b[33m" : "",
+  cyan: useColor ? "\x1b[36m" : "",
+  gray: useColor ? "\x1b[90m" : "",
+};
+
 function printSummary(summaries: SpecRunSummary[]): void {
-  process.stdout.write("\n────── ccqa summary ──────\n\n");
+  process.stdout.write(
+    `\n${C.cyan}${C.bold}──────── ccqa summary ────────${C.reset}\n\n`,
+  );
 
   let totalTests = 0;
   let totalPassed = 0;
@@ -129,10 +142,11 @@ function printSummary(summaries: SpecRunSummary[]): void {
   let totalSkipped = 0;
 
   for (const s of summaries) {
-    const header = `${s.featureName}/${s.specName}`;
+    const header = `${C.bold}${s.featureName}/${s.specName}${C.reset}`;
     if (!s.report) {
-      const icon = s.exitCode === 0 ? "✓" : "✗";
-      process.stdout.write(`${icon} ${header} (no report)\n`);
+      const ok = s.exitCode === 0;
+      const icon = ok ? `${C.green}✔${C.reset}` : `${C.red}✖${C.reset}`;
+      process.stdout.write(`${icon} ${header} ${C.dim}(no report)${C.reset}\n`);
       continue;
     }
 
@@ -141,32 +155,38 @@ function printSummary(summaries: SpecRunSummary[]): void {
     totalFailed += s.report.numFailedTests;
     totalSkipped += s.report.numPendingTests;
 
-    const icon = s.report.success ? "✓" : "✗";
+    const ok = s.report.success;
+    const icon = ok ? `${C.green}✔${C.reset}` : `${C.red}✖${C.reset}`;
+    const countColor = ok ? C.green : C.red;
     process.stdout.write(
-      `${icon} ${header}  (${s.report.numPassedTests}/${s.report.numTotalTests} passed)\n`,
+      `${icon} ${header}  ${countColor}${s.report.numPassedTests}/${s.report.numTotalTests}${C.reset} ${C.dim}passed${C.reset}\n`,
     );
 
     for (const file of s.report.testResults) {
       for (const a of file.assertionResults) {
         const aIcon = assertionIcon(a.status);
-        const dur = a.duration != null ? `  ${formatDuration(a.duration)}` : "";
+        const dur = a.duration != null ? ` ${C.gray}${formatDuration(a.duration)}${C.reset}` : "";
         process.stdout.write(`    ${aIcon} ${a.fullName}${dur}\n`);
         if (a.status === "failed" && a.failureMessages?.length) {
           for (const msg of a.failureMessages) {
             const firstLine = msg.split("\n")[0] ?? msg;
-            process.stdout.write(`        ${firstLine}\n`);
+            process.stdout.write(`        ${C.red}${firstLine}${C.reset}\n`);
           }
         }
       }
     }
   }
 
+  const specsPassed = summaries.filter((s) => s.exitCode === 0).length;
+  const specsFailed = summaries.filter((s) => s.exitCode !== 0).length;
   process.stdout.write("\n");
   process.stdout.write(
-    `  Specs      ${summaries.length} (${summaries.filter((s) => s.exitCode === 0).length} passed, ${summaries.filter((s) => s.exitCode !== 0).length} failed)\n`,
+    `  ${C.bold}Specs${C.reset}   ${summaries.length}  ` +
+      `(${C.green}${specsPassed} passed${C.reset}, ${specsFailed > 0 ? C.red : C.dim}${specsFailed} failed${C.reset})\n`,
   );
   process.stdout.write(
-    `  Tests      ${totalTests} (${totalPassed} passed, ${totalFailed} failed, ${totalSkipped} skipped)\n`,
+    `  ${C.bold}Tests${C.reset}   ${totalTests}  ` +
+      `(${C.green}${totalPassed} passed${C.reset}, ${totalFailed > 0 ? C.red : C.dim}${totalFailed} failed${C.reset}, ${C.yellow}${totalSkipped} skipped${C.reset})\n`,
   );
   process.stdout.write("\n");
 }
@@ -174,13 +194,13 @@ function printSummary(summaries: SpecRunSummary[]): void {
 function assertionIcon(status: VitestAssertionResult["status"]): string {
   switch (status) {
     case "passed":
-      return "✓";
+      return `${C.green}✔${C.reset}`;
     case "failed":
-      return "✗";
+      return `${C.red}✖${C.reset}`;
     case "skipped":
     case "pending":
     case "todo":
-      return "⊘";
+      return `${C.yellow}◌${C.reset}`;
   }
 }
 
