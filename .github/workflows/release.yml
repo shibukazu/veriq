@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -37,8 +38,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -79,11 +83,9 @@ jobs:
           git push origin HEAD:main
           git push origin "${VERSION}"
 
-      - name: Publish to npm
+      - name: Publish to npm (trusted publishing + provenance)
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
 
       - name: Dry-run publish
         if: ${{ inputs.dry_run }}
