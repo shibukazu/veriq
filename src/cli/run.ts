@@ -88,9 +88,13 @@ async function runTests(target?: string): Promise<void> {
           "--reporter=json",
           `--outputFile.json=${reportFile}`,
         ],
-        { stdout: "inherit", stderr: "inherit" },
+        { stdout: "pipe", stderr: "pipe" },
       );
 
+      await Promise.all([
+        streamFiltered(proc.stdout, Bun.stdout),
+        streamFiltered(proc.stderr, Bun.stderr),
+      ]);
       const exitCode = await proc.exited;
       if (exitCode !== 0) overallExitCode = exitCode;
 
@@ -183,6 +187,40 @@ function assertionIcon(status: VitestAssertionResult["status"]): string {
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
+}
+
+const NOISE_LINE_PATTERNS = [/^JSON report written to /];
+
+async function streamFiltered(
+  source: ReadableStream<Uint8Array>,
+  sink: { write: (chunk: Uint8Array) => unknown },
+): Promise<void> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+  const reader = source.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl = buffer.indexOf("\n");
+      while (nl !== -1) {
+        const line = buffer.slice(0, nl);
+        buffer = buffer.slice(nl + 1);
+        if (!NOISE_LINE_PATTERNS.some((p) => p.test(line))) {
+          sink.write(encoder.encode(line + "\n"));
+        }
+        nl = buffer.indexOf("\n");
+      }
+    }
+    buffer += decoder.decode();
+    if (buffer.length > 0 && !NOISE_LINE_PATTERNS.some((p) => p.test(buffer))) {
+      sink.write(encoder.encode(buffer));
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 async function resolveSpecs(target?: string): Promise<Array<{ featureName: string; specName: string }>> {
