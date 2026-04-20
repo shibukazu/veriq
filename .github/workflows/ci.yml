@@ -12,24 +12,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: pnpm
 
       - name: Install dependencies
-        # No committed lockfile (see npm/cli#4828 — npm pins optional
-        # binaries to the author's platform and breaks `npm ci` on Linux).
-        # A plain `npm install` re-resolves optionalDependencies for the
-        # current platform. Reproducibility is bounded by the caret
-        # ranges in package.json, which is acceptable for a CLI package.
-        run: npm install --no-audit --no-fund --no-save
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm typecheck
 
       - name: Unit tests
-        run: npm run test:unit
+        run: pnpm test:unit
 
       - name: E2E tests
-        run: npm run test:e2e
+        run: pnpm test:e2e

@@ -59,6 +59,11 @@
     "runtime": {
       "name": "node",
       "version": ">=22.6"
+    },
+    "packageManager": {
+      "name": "pnpm",
+      "version": ">=9"
     }
-  }
+  },
+  "packageManager": "pnpm@10.1.0"
 }

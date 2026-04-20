@@ -1,9 +1,9 @@
 # dependencies
 node_modules
 
-# lockfiles: intentionally untracked. npm's lockfile pins platform-specific
-# optional binaries (see npm/cli#4828) which breaks `npm ci` when the dev
-# platform differs from CI's. bun.lock is local-dev convenience only.
+# pnpm-lock.yaml is the canonical lockfile and IS tracked. bun.lock is
+# local-dev convenience only. package-lock.json is blocked to prevent
+# accidental checkins (pnpm is the repo's package manager).
 bun.lock
 package-lock.json
 
