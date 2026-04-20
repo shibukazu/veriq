@@ -43,3 +43,6 @@ test-results/
 
 # ccqa test
 .ccqa/
+# but keep E2E fixture .ccqa dirs
+!tests/e2e/fixtures/**/.ccqa/
+!tests/e2e/fixtures/**/.ccqa/**
