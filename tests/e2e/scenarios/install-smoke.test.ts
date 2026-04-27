@@ -51,9 +51,26 @@ describe.skipIf(!distBuilt || !pnpmAvailable)(
       tarball = join(packDir, tgz);
 
       consumer = await mkdtemp(join(tmpdir(), "ccqa-smoke-consumer-"));
+
+      // Materialize a fake agent-browser package next to consumer/ so we can
+      // install it as a real top-level dep. This is what pnpm will then peer-
+      // link into ccqa's isolated node_modules — without this step pnpm pulls
+      // the real agent-browser from the registry to satisfy the peer.
+      const fakeAbDir = join(consumer, "fake-agent-browser");
+      await installFakeAgentBrowser(consumer, fakeAbDir);
+
       writeFileSync(
         join(consumer, "package.json"),
-        JSON.stringify({ name: "ccqa-smoke-consumer", version: "0.0.0", type: "module" }, null, 2),
+        JSON.stringify(
+          {
+            name: "ccqa-smoke-consumer",
+            version: "0.0.0",
+            type: "module",
+            dependencies: { "agent-browser": `file:${fakeAbDir}` },
+          },
+          null,
+          2,
+        ),
         "utf8",
       );
       const add = spawnSync(
@@ -69,7 +86,6 @@ describe.skipIf(!distBuilt || !pnpmAvailable)(
       if (add.status !== 0) {
         throw new Error(`pnpm add failed: ${add.stderr}`);
       }
-      await installFakeAgentBrowser(consumer);
     }, 180_000);
 
     afterAll(async () => {
