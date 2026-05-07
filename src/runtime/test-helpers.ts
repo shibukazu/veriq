@@ -10,13 +10,40 @@ const AB = require.resolve("agent-browser/bin/agent-browser.js");
 
 type Result = { status: number | null; stdout: string; stderr: string };
 
-function spawnAB(args: string[]): Result {
+// agent-browser surfaces EAGAIN (os error 35 / "Resource temporarily
+// unavailable") when the daemon's state file is being written by a concurrent
+// command and the reader hits the filesystem mid-flush. The daemon usually
+// settles within tens-to-hundreds of ms, so a few short retries hide the
+// flake without masking real failures (selectors that genuinely don't match,
+// timeouts, etc).
+const EAGAIN_PATTERN = /Resource temporarily unavailable|os error 35/i;
+const EAGAIN_RETRIES = 3;
+const EAGAIN_BACKOFF_MS = [200, 500, 1000] as const;
+
+function sleepSync(ms: number): void {
+  const buf = new SharedArrayBuffer(4);
+  Atomics.wait(new Int32Array(buf), 0, 0, ms);
+}
+
+function spawnABOnce(args: string[]): Result {
   const result = spawnSync(AB, args, { stdio: "pipe" });
   return {
     status: result.status,
     stdout: result.stdout?.toString() ?? "",
     stderr: result.stderr?.toString() ?? "",
   };
+}
+
+function spawnAB(args: string[]): Result {
+  let result = spawnABOnce(args);
+  for (let attempt = 0; attempt < EAGAIN_RETRIES; attempt++) {
+    if (result.status === 0) return result;
+    const combined = `${result.stdout}\n${result.stderr}`;
+    if (!EAGAIN_PATTERN.test(combined)) return result;
+    sleepSync(EAGAIN_BACKOFF_MS[attempt] ?? 1000);
+    result = spawnABOnce(args);
+  }
+  return result;
 }
 
 function logStep(action: string, args: readonly unknown[]): void {
