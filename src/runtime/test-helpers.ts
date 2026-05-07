@@ -74,11 +74,13 @@ export function abAssertVisible(selector: string, timeoutMs = 30_000): void {
   }
 }
 
-/** Assert element is NOT visible (via wait --state hidden). */
+/** Assert element is NOT visible (via wait --state hidden or --fn for text). */
 export function abAssertNotVisible(selector: string, timeoutMs = 30_000): void {
   logStep("assert.hidden", [selector]);
+  // agent-browser does not support `--text` and `--state` together.
+  // For text selectors, use --fn with a negated innerText check instead.
   const args = selector.startsWith("text=")
-    ? ["wait", "--text", selector.slice(5), "--state", "hidden", "--timeout", String(timeoutMs)]
+    ? ["wait", "--fn", `!document.body.innerText.includes(${JSON.stringify(selector.slice(5))})`, "--timeout", String(timeoutMs)]
     : ["wait", selector, "--state", "hidden", "--timeout", String(timeoutMs)];
   const result = spawnAB(args);
   if (result.status !== 0) {
