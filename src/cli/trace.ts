@@ -8,6 +8,7 @@ import { ensureCcqaDir, parseSpecPath, readSpecFile, saveRoute, saveTraceActions
 import { parseTestSpec } from "../spec/parser.ts";
 import { bundledVitestConfigPath } from "../runtime/bundled-config.ts";
 import { spawnVitestCaptured } from "../runtime/spawn-vitest.ts";
+import { pathWithAgentBrowserShim } from "../runtime/agent-browser-bin.ts";
 import type { Route, RouteStep, TraceAction, TraceCommand, AssertType, ParsedStatusLine } from "../types.ts";
 import * as log from "./logger.ts";
 
@@ -65,7 +66,14 @@ async function runTrace(featureName: string, specName: string): Promise<void> {
       prompt,
       systemPrompt,
       allowedTools: ["Bash(*)", "Read", "Grep", "Glob"],
-      env: { AGENT_BROWSER_SESSION: sessionName },
+      // Prepend the peer-installed agent-browser shim dir to PATH so the
+      // Claude subprocess can invoke `agent-browser ...` without requiring a
+      // global install. Without this, peer-only setups (e.g. running ccqa
+      // inside a Claude Code terminal) hit "command not found".
+      env: {
+        AGENT_BROWSER_SESSION: sessionName,
+        PATH: pathWithAgentBrowserShim(process.env["PATH"]),
+      },
       onAbAction: (abAction: string) => {
         const action = parseAbAction(abAction);
         if (action) traceActions.push(action);
